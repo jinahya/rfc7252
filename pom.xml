@@ -14,9 +14,9 @@
   <packaging>jar</packaging>
 
   <name>${project.artifactId}</name>
-  <description>library for reading/writing non-octet aligned values</description>
+  <description>library for RFC 7252</description>
   <url>https://github.com/jinahya/${project.artifactId}</url>
-  <inceptionYear>2014</inceptionYear>
+  <inceptionYear>2020</inceptionYear>
   <organization>
     <name>Jinahya, Inc.</name>
     <url>https://jinahya.com</url>
@@ -223,7 +223,7 @@
                 <mkdir dir="${project.build.outputDirectory.retrotranslated13}"/>
                 <retrotranslator srcdir="${project.build.outputDirectory}"
                                  destdir="${project.build.outputDirectory.retrotranslated13}"
-                                 embed="com.github.jinahya.bit.io.retrotranslated13" failonwarning="false" smart="true"
+                                 embed="com.github.jinahya.rfc7252.retrotranslated13" failonwarning="false" smart="true"
                                  stripannot="true" stripsign="true" syncvolatile="true" target="1.3" verbose="false"
                                  verify="false">
                   <classpath>
@@ -246,7 +246,7 @@
                 <mkdir dir="${project.build.outputDirectory.retrotranslated14}"/>
                 <retrotranslator srcdir="${project.build.outputDirectory}"
                                  destdir="${project.build.outputDirectory.retrotranslated14}"
-                                 embed="com.github.jinahya.bit.io.retrotranslated14" failonwarning="false" smart="true"
+                                 embed="com.github.jinahya.rfc7252.retrotranslated14" failonwarning="false" smart="true"
                                  stripannot="true" stripsign="true" syncvolatile="true" target="1.4" verbose="false"
                                  verify="false">
                   <classpath>
@@ -298,19 +298,6 @@
             <arg>-Xlint</arg>
           </compilerArgs>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${version.maven-failsafe}</version>
-        <executions>
-          <execution>
-            <goals>
-              <!--              <goal>integration-test</goal>-->
-              <!--              <goal>verify</goal>-->
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -532,6 +519,26 @@
       <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
       </properties>
+    </profile>
+    <profile>
+      <id>failsafe</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>${version.maven-failsafe}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

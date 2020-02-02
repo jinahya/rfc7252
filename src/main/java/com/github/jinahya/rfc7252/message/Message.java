@@ -16,19 +16,34 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+
+import static java.util.Collections.sort;
 
 public class Message {
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The minimum value for {@code version} property. The value is {@value}.
+     */
     public static final int MIN_VERSION = 0;
 
+    /**
+     * The maximum value for {@code version} property. The value is {@value}.
+     */
     public static final int MAX_VERSION = 3;
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The minimum value for {@code type} property. The value is {@value}.
+     */
     public static final int MIN_TYPE = 0;
 
+    /**
+     * The maximum value for {@code type} property. The value is {@value}.
+     */
     public static final int MAX_TYPE = 3;
 
     public static final int TYPE_CONFIRMABLE = 0;
@@ -40,8 +55,15 @@ public class Message {
     public static final int TYPE_REST = 3;
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The minimum value for {@code code} property. The value is {@value}.
+     */
     public static final int MIN_CODE = 0;
 
+    /**
+     * The maximum value for {@code code} property. The value is {@value}.
+     */
     public static final int MAX_CODE = 255;
 
     public static final int SIZE_CODE_CLASS = 3;
@@ -183,6 +205,7 @@ public class Message {
                     output.writeShort(lengthExtended_);
                 }
             }
+            output.write(value);
         }
 
         // ---------------------------------------------------------------------------------------------- previousNumber
@@ -258,7 +281,7 @@ public class Message {
         private transient int number;
 
         @NotNull
-        private byte[] value;
+        private byte[] value = new byte[0];
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -281,7 +304,7 @@ public class Message {
             } catch (final EOFException eofe) {
                 return;
             }
-            if (b == 0xFF) { // payload marker
+            if (b == PAYLOAD_MARKER) { // payload marker
                 final ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 while (true) {
                     try {
@@ -324,7 +347,10 @@ public class Message {
             output.write(token);
         }
         if (options != null && options.size() > 0) {
-            Collections.sort(options);
+            sort(options);
+            for (int i = 1; i < options.size(); i++) {
+                options.get(i).setPrevious(options.get(i - 1));
+            }
             for (final Option option : options) {
                 option.write(output);
             }
@@ -354,6 +380,13 @@ public class Message {
         return type;
     }
 
+    /**
+     * Replaces the current value of {@code type} property with specified value.
+     *
+     * @param type new value for {@code type} property.
+     * @see #MIN_TYPE
+     * @see #MAX_TYPE
+     */
     public void setType(final int type) {
         if (type < MIN_TYPE) {
             throw new IllegalArgumentException("type(" + type + ") < " + MIN_TYPE);
