@@ -2,6 +2,9 @@ package com.github.jinahya.rfc7252.message;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.json.bind.annotation.JsonbTransient;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -16,6 +19,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Collections.sort;
@@ -101,8 +105,6 @@ public class Message {
         // -------------------------------------------------------------------------------------------------------------
         public static final int MIN_NUMBER = 0;
 
-//        public static final int MAX_OPTION_NUMBER = 65535 + 269;
-
         // -------------------------------------------------------------------------------------------------------------
         static final int MIN_DELTA = 0;
 
@@ -114,6 +116,8 @@ public class Message {
 
         public static final int MAX_VALUE_LENGTH = 65535 + 269;
 
+        public static final byte[] VALUE_EMPTY = new byte[0];
+
         // -------------------------------------------------------------------------------------------------------------
         @Override
         public int compareTo(final Option o) {
@@ -124,6 +128,30 @@ public class Message {
                 return 0;
             }
             return 1;
+        }
+
+        @Override
+        public String toString() {
+            return super.toString() + "{"
+                   + "number=" + number
+                   + ",value=" + Arrays.toString(value)
+                   + "}";
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Option)) return false;
+            final Option option = (Option) o;
+            if (number != option.number) return false;
+            return Arrays.equals(value, option.value);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = number;
+            result = 31 * result + Arrays.hashCode(value);
+            return result;
         }
 
         // -------------------------------------------------------------------------------------------------------------
@@ -158,6 +186,12 @@ public class Message {
             setValue(value);
         }
 
+        /**
+         * Reads this object's contents from specified data input.
+         *
+         * @param input the data input from which contents are read.
+         * @throws IOException
+         */
         public void read(final DataInput input) throws IOException {
             if (input == null) {
                 throw new NullPointerException("input is null");
@@ -165,6 +199,12 @@ public class Message {
             read(input.readUnsignedByte(), input);
         }
 
+        /**
+         * Writes this object's contents to specified data output.
+         *
+         * @param output the data output to which this object's contents is written.
+         * @throws IOException if an I/O error occurs.
+         */
         public void write(final DataOutput output) throws IOException {
             int delta_ = delta;
             Integer deltaExtended_ = null;
@@ -185,7 +225,7 @@ public class Message {
                 lengthExtended_ = length_ - 13;
                 length_ = 13;
             } else if (length_ <= (65535 + 269)) {
-                lengthExtended_ = length_ = 269;
+                lengthExtended_ = length_ - 269;
                 length_ = 14;
             }
             output.writeByte((delta_ << 4) | length_);
@@ -210,11 +250,14 @@ public class Message {
 
         // ---------------------------------------------------------------------------------------------- previousNumber
         void setPreviousNumber(final int previousNumber) {
-            if (previousNumber > number) {
-                throw new IllegalArgumentException(
-                        "previousNumber(" + previousNumber + " > number(" + number + ")");
+            if (previousNumber < MIN_NUMBER) {
+                throw new IllegalArgumentException("previousNumber(" + previousNumber + ") < " + MIN_NUMBER);
             }
-            setDelta(number - previousNumber);
+            if (delta != null) { // after read
+                setNumber(previousNumber + delta);
+            } else { // before write
+                setDelta(number - previousNumber);
+            }
         }
 
         // ---------------------------------------------------------------------------------------------------- previous
@@ -222,11 +265,7 @@ public class Message {
             if (previous == null) {
                 throw new NullPointerException("previous is null");
             }
-            final int previousNumber = previous.getNumber();
-            if (previousNumber > number) {
-                throw new IllegalArgumentException("previous.number(" + previousNumber + ") > number(" + number + ")");
-            }
-            setPreviousNumber(previousNumber);
+            setPreviousNumber(previous.getNumber());
         }
 
         // ------------------------------------------------------------------------------------------------------- delta
@@ -250,6 +289,7 @@ public class Message {
                 throw new IllegalArgumentException("number(" + number + ") < " + MIN_NUMBER);
             }
             this.number = number;
+            delta = null;
         }
 
         // ------------------------------------------------------------------------------------------------------- value
@@ -257,7 +297,7 @@ public class Message {
             return value;
         }
 
-        private void setValue(final byte[] value) {
+        public void setValue(final byte[] value) {
             if (value == null) {
                 throw new NullPointerException("value is null");
             }
@@ -272,7 +312,9 @@ public class Message {
 
         // -------------------------------------------------------------------------------------------------------------
         @PositiveOrZero
-        private int delta;
+        @Setter(AccessLevel.NONE)
+        @Getter(AccessLevel.NONE)
+        private Integer delta;
 
         @JsonIgnore
         @JsonbTransient
@@ -281,7 +323,48 @@ public class Message {
         private transient int number;
 
         @NotNull
-        private byte[] value = new byte[0];
+        private byte[] value = VALUE_EMPTY;
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public String toString() {
+        return super.toString() + "{"
+               + "version=" + version
+               + ",type=" + type
+               + ",code=" + code
+               + ",messageId=" + messageId
+               + ",token=" + Arrays.toString(token)
+               + ",options=" + options +
+               ",payload=" + Arrays.toString(payload)
+               + "}";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Message)) return false;
+        final Message message = (Message) o;
+        if (version != message.version) return false;
+        if (type != message.type) return false;
+        if (code != message.code) return false;
+        if (messageId != message.messageId) return false;
+        if (!Arrays.equals(token, message.token)) return false;
+        if (options != null ? !options.equals(message.options) : message.options != null) return false;
+        return Arrays.equals(payload, message.payload);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = version;
+        result = 31 * result + type;
+        result = 31 * result + code;
+        result = 31 * result + messageId;
+        result = 31 * result + Arrays.hashCode(token);
+        result = 31 * result + (options != null ? options.hashCode() : 0);
+        result = 31 * result + Arrays.hashCode(payload);
+        return result;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -302,7 +385,7 @@ public class Message {
             try {
                 b = input.readUnsignedByte();
             } catch (final EOFException eofe) {
-                return;
+                break;
             }
             if (b == PAYLOAD_MARKER) { // payload marker
                 final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -322,6 +405,12 @@ public class Message {
                     options = new ArrayList<Option>();
                 }
                 options.add(option);
+            }
+        }
+        if (options != null && options.size() > 0) {
+            options.get(0).setPreviousNumber(0);
+            for (int i = 1; i < options.size(); i++) {
+                options.get(i).setPrevious(options.get(i - 1));
             }
         }
     }
@@ -348,6 +437,7 @@ public class Message {
         }
         if (options != null && options.size() > 0) {
             sort(options);
+            options.get(0).setPreviousNumber(0);
             for (int i = 1; i < options.size(); i++) {
                 options.get(i).setPrevious(options.get(i - 1));
             }
@@ -369,7 +459,7 @@ public class Message {
         if (version < MIN_VERSION) {
             throw new IllegalArgumentException("version(" + version + ") < " + MIN_VERSION);
         }
-        if (version < MAX_VERSION) {
+        if (version > MAX_VERSION) {
             throw new IllegalArgumentException("version(" + version + ") > " + MAX_VERSION);
         }
         this.version = version;
@@ -391,7 +481,7 @@ public class Message {
         if (type < MIN_TYPE) {
             throw new IllegalArgumentException("type(" + type + ") < " + MIN_TYPE);
         }
-        if (type < MAX_TYPE) {
+        if (type > MAX_TYPE) {
             throw new IllegalArgumentException("type(" + type + ") > " + MAX_TYPE);
         }
         this.type = type;
@@ -406,7 +496,7 @@ public class Message {
         if (code < MIN_CODE) {
             throw new IllegalArgumentException("code(" + code + ") < " + MIN_CODE);
         }
-        if (code < MAX_CODE) {
+        if (code > MAX_CODE) {
             throw new IllegalArgumentException("code(" + code + ") > " + MAX_CODE);
         }
         this.code = code;
@@ -454,7 +544,7 @@ public class Message {
 
     public void setToken(final byte[] token) {
         if (token != null) {
-            if (token.length <= MIN_TOKEN_LENGTH) {
+            if (token.length < MIN_TOKEN_LENGTH) {
                 throw new IllegalArgumentException("token.length(" + token.length + ") < " + MIN_TOKEN_LENGTH);
             }
             if (token.length > MAX_TOKEN_LENGTH) {
