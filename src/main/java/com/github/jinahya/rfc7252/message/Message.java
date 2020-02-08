@@ -26,12 +26,7 @@ public class Message {
     /**
      * The number of bits for {@code version} property.
      */
-    public static final int SIZE_VERSION = 2;
-
-//    /**
-//     * The minimum value for {@code version} property. The value is {@value}.
-//     */
-//    public static final int MIN_VERSION = 0;
+    private static final int SIZE_VERSION = 2;
 
     /**
      * The maximum value for {@code version} property. The value is {@value}.
@@ -43,12 +38,7 @@ public class Message {
     /**
      * The number of bits for {@code type} property.
      */
-    public static final int SIZE_TYPE = 2;
-
-//    /**
-//     * The minimum value for {@code type} property. The value is {@value}.
-//     */
-//    public static final int MIN_TYPE = 0;
+    private static final int SIZE_TYPE = 2;
 
     /**
      * The maximum value for {@code type} property. The value is {@value}.
@@ -63,6 +53,9 @@ public class Message {
     public static final int TYPE_ACKNOWLEDGEMENT = 2;
 
     public static final int TYPE_RESET = 3;
+
+    // -----------------------------------------------------------------------------------------------------------------
+    private static final int SIZE_TOKEN_LENGTH = 4;
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -316,7 +309,7 @@ public class Message {
         public String toString() {
             return super.toString() + "{"
                    + "number=" + number
-                   + ",value=" + Arrays.toString(value)
+                   + ",value=" + value
                    + "}";
         }
 
@@ -577,7 +570,8 @@ public class Message {
                + ",messageId=" + messageId
                + ",token=" + Arrays.toString(token)
                + ",options=" + getOptions()
-               + ",payload=" + Arrays.toString(payload)
+//               + ",payload=" + Arrays.toString(payload)
+               + ",payload=" + payload
                + "}";
     }
 
@@ -637,29 +631,28 @@ public class Message {
                     }
                 }
                 setPayload(baos.toByteArray());
-                return;
-            } else {
-                final Option option = new Option();
-                option.read(b, input);
-                if (options == null) {
-                    options = new ArrayList<Option>();
-                }
-                options.add(option);
+                break;
             }
-        }
-        if (options != null && options.size() > 0) {
-            options.get(0).setPreviousNumber(0);
-            for (int i = 1; i < options.size(); i++) {
-                options.get(i).setPrevious(options.get(i - 1));
+            final Option option = new Option();
+            option.read(b, input);
+            {
+                final int previousNumber;
+                final List<Option> options = getOptions();
+                previousNumber = options.isEmpty() ? 0 : options.get(options.size() - 1).getNumber();
+                option.setPreviousNumber(previousNumber);
             }
+            options.add(option);
         }
     }
 
     public void write(final DataOutput output) throws IOException {
-        output.write((version << 6) | (type << 4) | (token == null ? 0 : token.length));
+        output.write((version << (SIZE_TYPE + SIZE_TOKEN_LENGTH))
+                     | (type << SIZE_TOKEN_LENGTH)
+                     | (token == null ? 0 : token.length)
+        );
         output.write(code);
         output.writeShort(messageId);
-        if (token != null && token.length > 0) {
+        if (token != null) {
             output.write(token);
         }
         if (options != null) {
@@ -672,6 +665,7 @@ public class Message {
             }
         }
         if (payload != null) {
+            output.write(PAYLOAD_MARKER);
             output.write(payload);
         }
     }

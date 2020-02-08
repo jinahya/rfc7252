@@ -56,10 +56,14 @@ public class MessageTest {
             sort(options);
             options.forEach(expected::addOption);
         }
+        final byte[] payload = new byte[current().nextInt(1024)];
+        current().nextBytes(payload);
+        expected.setPayload(payload);
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         expected.write(new DataOutputStream(baos));
         final Message actual = new Message();
         actual.read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray())));
+        log.debug("actual: {}", actual);
         assertEquals(expected, actual);
     }
 }
