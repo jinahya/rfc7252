@@ -1,7 +1,7 @@
 package com.github.jinahya.rfc7252.message;
 
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -22,7 +22,6 @@ import static com.github.jinahya.rfc7252.message.Message.MIN_TOKEN_LENGTH;
 import static com.github.jinahya.rfc7252.message.Message.MIN_TYPE;
 import static com.github.jinahya.rfc7252.message.Message.MIN_VERSION;
 import static com.github.jinahya.rfc7252.message.Message.Option.MAX_DELTA;
-import static com.github.jinahya.rfc7252.message.Message.Option.MIN_DELTA;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -35,8 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class MessageTest {
 
     // -----------------------------------------------------------------------------------------------------------------
-//    @RepeatedTest(16)
-    @Test
+    @RepeatedTest(16)
+//    @Test
     public void writeRead() throws IOException {
         final Message expected = new Message();
         expected.setVersion(current().nextInt(MIN_VERSION, MAX_VERSION + 1));
@@ -51,7 +50,7 @@ public class MessageTest {
             final int size = current().nextInt(1, 8);
             for (int i = 0; i < size; i++) {
                 final Message.Option option = new Message.Option();
-                option.setNumber(current().nextInt(MIN_DELTA, MAX_DELTA + 1));
+                option.setNumber(current().nextInt(0, MAX_DELTA + 1));
                 final byte[] value = new byte[current().nextInt(8)]; // (MAX_VALUE_LENGTH >> 3) + 1)];
                 current().nextBytes(value);
                 option.setValue(value);
@@ -63,7 +62,6 @@ public class MessageTest {
         expected.write(new DataOutputStream(baos));
         final Message actual = new Message();
         actual.read(new DataInputStream(new ByteArrayInputStream(baos.toByteArray())));
-        log.debug("actual: {}", actual);
         assertEquals(expected, actual);
     }
 }

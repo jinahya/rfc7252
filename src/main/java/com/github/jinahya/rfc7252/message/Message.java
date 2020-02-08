@@ -17,6 +17,8 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +26,11 @@ import java.util.List;
 
 import static java.util.Collections.sort;
 
+/**
+ * .
+ *
+ * @see <a href="https://tools.ietf.org/html/rfc7252#section-3">3. Message Format (RFC 7252)</a>
+ */
 public class Message {
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -56,7 +63,7 @@ public class Message {
 
     public static final int TYPE_ACKNOWLEDGEMENT = 2;
 
-    public static final int TYPE_REST = 3;
+    public static final int TYPE_RESET = 3;
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -70,9 +77,12 @@ public class Message {
      */
     public static final int MAX_CODE = 255;
 
-    public static final int SIZE_CODE_CLASS = 3;
+    // -----------------------------------------------------------------------------------------------------------------
+    private static final int SIZE_CODE_CLASS = 3;
 
-    private static final int MASK_CODE_CLASS = 7; // 0b111
+    public static final int MIN_CODE_CLASS = 0;
+
+    public static final int MAX_CODE_CLASS = 7;
 
     public static final int CODE_CLASS_REQUEST = 0;
 
@@ -82,9 +92,12 @@ public class Message {
 
     public static final int CODE_CLASS_SERVER_ERROR_RESPONSE = 5;
 
-    public static final int SIZE_CODE_DETAIL = 5;
+    // -----------------------------------------------------------------------------------------------------------------
+    private static final int SIZE_CODE_DETAIL = 5;
 
-    private static final int MASK_CODE_DETAIL = 31; // 0b111111
+    private static final int MIN_CODE_DETAIL = 0;
+
+    private static final int MAX_CODE_DETAIL = 31;
 
     // -----------------------------------------------------------------------------------------------------------------
     public static final int MIN_MESSAGE_ID = 0;
@@ -100,20 +113,25 @@ public class Message {
     public static final int PAYLOAD_MARKER = 0xFF;
 
     // -----------------------------------------------------------------------------------------------------------------
+    public static Message newEmptyInstance() {
+        final Message instance = new Message();
+        instance.setCode(0);
+        return instance;
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * .
+     *
+     * @see <a href="https://tools.ietf.org/html/rfc7252#section-3.1">3.1. Option Format (RFC 7252)</a>
+     */
     public static class Option implements Comparable<Option> {
 
         // -------------------------------------------------------------------------------------------------------------
-        public static final int MIN_NUMBER = 0;
-
-        // -------------------------------------------------------------------------------------------------------------
-        static final int MIN_DELTA = 0;
-
         static final int MAX_DELTA = 65535 + 269;
 
         // -------------------------------------------------------------------------------------------------------------
-        @Deprecated
-        public static final int MIN_VALUE_LENGTH = 0;
-
         public static final int MAX_VALUE_LENGTH = 65535 + 269;
 
         public static final byte[] VALUE_EMPTY = new byte[0];
@@ -143,42 +161,47 @@ public class Message {
             if (this == o) return true;
             if (!(o instanceof Option)) return false;
             final Option option = (Option) o;
-            if (number != option.number) return false;
+            if (number != null ? !number.equals(option.number) : option.number != null) return false;
             return Arrays.equals(value, option.value);
         }
 
         @Override
         public int hashCode() {
-            int result = number;
+            int result = number != null ? number.hashCode() : 0;
             result = 31 * result + Arrays.hashCode(value);
             return result;
         }
 
         // -------------------------------------------------------------------------------------------------------------
+
+        /**
+         * Reads contents of this object, except the first byte, from specified data input.
+         *
+         * @param b     the first byte.
+         * @param input the data input from which this object's contents are read.
+         * @throws IOException if an I/O error occurs.
+         */
         void read(final int b, final DataInput input) throws IOException {
+            if ((b | 0xFF) != 0xFF) {
+                throw new IllegalArgumentException("illegal b: " + b);
+            }
             int length;
             {
                 delta = b >> 4;
                 length = b & 0xF;
             }
-            if (delta < 13) {
-                // do nothing
-            } else if (delta == 13) {
+            if (delta == 13) {
                 delta = input.readUnsignedByte() + 13;
             } else if (delta == 14) {
                 delta = input.readUnsignedShort() + 269;
-            } else {
-                assert delta == 0xF;
+            } else if (delta == 15) {
                 throw new RuntimeException("illegal delta: " + delta);
             }
-            if (length < 13) {
-                // do nothing
-            } else if (length == 13) {
+            if (length == 13) {
                 length = input.readUnsignedByte() + 13;
             } else if (length == 14) {
                 length = input.readUnsignedShort() + 269;
-            } else {
-                assert length == 0xF;
+            } else if (length == 15) {
                 throw new RuntimeException("illegal length: " + length);
             }
             value = new byte[length];
@@ -190,13 +213,14 @@ public class Message {
          * Reads this object's contents from specified data input.
          *
          * @param input the data input from which contents are read.
-         * @throws IOException
+         * @throws IOException if an I/O error occurs.
          */
         public void read(final DataInput input) throws IOException {
             if (input == null) {
                 throw new NullPointerException("input is null");
             }
             read(input.readUnsignedByte(), input);
+            number = null;
         }
 
         /**
@@ -206,25 +230,28 @@ public class Message {
          * @throws IOException if an I/O error occurs.
          */
         public void write(final DataOutput output) throws IOException {
+            if (delta == null) {
+                throw new IllegalStateException("(internal) delta is currently null");
+            }
             int delta_ = delta;
-            Integer deltaExtended_ = null;
-            int length_ = value.length;
-            Integer lengthExtended_ = null;
-            if (delta_ < 13) {
-                // do nothing
+            Integer deltaExtended_;
+            if (delta_ <= 13) {
+                deltaExtended_ = null;
             } else if (delta_ <= (255 + 13)) {
                 deltaExtended_ = delta_ - 13;
                 delta_ = 13;
-            } else if (delta_ <= (65535 + 269)) {
+            } else {
                 deltaExtended_ = delta_ - 269;
                 delta_ = 14;
             }
-            if (length_ < 13) {
-                // do nothing
+            int length_ = value.length;
+            Integer lengthExtended_;
+            if (length_ <= 13) {
+                lengthExtended_ = null;
             } else if (length_ <= (255 + 13)) {
                 lengthExtended_ = length_ - 13;
                 length_ = 13;
-            } else if (length_ <= (65535 + 269)) {
+            } else {//if (length_ <= MAX_VALUE_LENGTH) {
                 lengthExtended_ = length_ - 269;
                 length_ = 14;
             }
@@ -233,7 +260,6 @@ public class Message {
                 if (delta_ == 13) {
                     output.write(deltaExtended_);
                 } else {
-                    assert delta_ == 14;
                     output.writeShort(deltaExtended_);
                 }
             }
@@ -241,7 +267,6 @@ public class Message {
                 if (length_ == 13) {
                     output.writeByte(lengthExtended_);
                 } else {
-                    assert length_ == 14;
                     output.writeShort(lengthExtended_);
                 }
             }
@@ -250,8 +275,8 @@ public class Message {
 
         // ---------------------------------------------------------------------------------------------- previousNumber
         void setPreviousNumber(final int previousNumber) {
-            if (previousNumber < MIN_NUMBER) {
-                throw new IllegalArgumentException("previousNumber(" + previousNumber + ") < " + MIN_NUMBER);
+            if (previousNumber < 0) {
+                throw new IllegalArgumentException("previousNumber(" + previousNumber + ") < 0");
             }
             if (delta != null) { // after read
                 setNumber(previousNumber + delta);
@@ -270,8 +295,8 @@ public class Message {
 
         // ------------------------------------------------------------------------------------------------------- delta
         void setDelta(final int delta) {
-            if (delta < MIN_DELTA) {
-                throw new IllegalArgumentException("delta(" + delta + ") < " + MIN_DELTA);
+            if (delta < 0) {
+                throw new IllegalArgumentException("delta(" + delta + ") < 0");
             }
             if (delta > MAX_DELTA) {
                 throw new IllegalArgumentException("delta(" + delta + ") > " + MAX_DELTA);
@@ -281,46 +306,105 @@ public class Message {
 
         // ------------------------------------------------------------------------------------------------------ number
         public int getNumber() {
+            if (number == null) {
+                throw new IllegalStateException("number is currently null");
+            }
             return number;
         }
 
         public void setNumber(final int number) {
-            if (number < MIN_NUMBER) {
-                throw new IllegalArgumentException("number(" + number + ") < " + MIN_NUMBER);
+            if (number < 0) {
+                throw new IllegalArgumentException("number(" + number + ") < 0");
             }
             this.number = number;
             delta = null;
         }
 
         // ------------------------------------------------------------------------------------------------------- value
+
+        /**
+         * Returns the current value of {@code value} property.
+         *
+         * @return the current value of {@code value} property.
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-3.2">3.2 Option Value Formats (RFC 7252)</a>
+         */
         public byte[] getValue() {
             return value;
         }
 
+        /**
+         * Replaces the current value of {@code value} property with specified value.
+         *
+         * @param value a new value for {@code value} property; must not {@code null}.
+         * @see #MAX_VALUE_LENGTH
+         * @see #VALUE_EMPTY
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-3.2">3.2 Option Value Formats (RFC 7252)</a>
+         */
         public void setValue(final byte[] value) {
             if (value == null) {
                 throw new NullPointerException("value is null");
             }
-            if (value.length < MIN_VALUE_LENGTH) {
-                throw new IllegalArgumentException("value.length(" + value.length + ") < " + MIN_VALUE_LENGTH);
-            }
             if (value.length > MAX_VALUE_LENGTH) {
-                throw new IllegalArgumentException("value.length(" + value.length + ") < " + MAX_VALUE_LENGTH);
+                throw new IllegalArgumentException("value.length(" + value.length + ") > " + MAX_VALUE_LENGTH);
             }
             this.value = value;
         }
 
+        public BigInteger getValueAsUint() {
+            if (value.length == 0) {
+                return BigInteger.ZERO;
+            }
+            final BigInteger valueAsUint = new BigInteger(getValue());
+            if (valueAsUint.signum() == -1) {
+                throw new IllegalStateException("valueAsUint.signum == -1");
+            }
+            return valueAsUint;
+        }
+
+        public void setValueAsUint(final BigInteger valueAsUint) {
+            if (valueAsUint == null) {
+                throw new NullPointerException("valueAsUint is null");
+            }
+            if (valueAsUint.signum() == -1) {
+                throw new IllegalArgumentException("valueAsUint.signum == -1");
+            }
+            if (valueAsUint.equals(BigInteger.ZERO)) {
+                setValue(VALUE_EMPTY);
+                return;
+            }
+            setValue(valueAsUint.toByteArray());
+        }
+
+        public String getValueAsString() {
+            try {
+                return new String(getValue(), "UTF-8");
+            } catch (final UnsupportedEncodingException uee) {
+                throw new RuntimeException(uee);
+            }
+        }
+
+        public void setValueAsString(final String valueAsString) {
+            if (valueAsString == null) {
+                throw new NullPointerException("valueAsString is null");
+            }
+            try {
+                setValue(valueAsString.getBytes("UTF-8"));
+            } catch (final UnsupportedEncodingException uee) {
+                throw new RuntimeException(uee);
+            }
+        }
+
         // -------------------------------------------------------------------------------------------------------------
+        @JsonIgnore
+        @JsonbTransient
         @PositiveOrZero
         @Setter(AccessLevel.NONE)
         @Getter(AccessLevel.NONE)
-        private Integer delta;
+        private transient Integer delta;
 
-        @JsonIgnore
-        @JsonbTransient
-        @Min(MIN_NUMBER)
         @PositiveOrZero
-        private transient int number;
+        @NotNull
+        private Integer number;
 
         @NotNull
         private byte[] value = VALUE_EMPTY;
@@ -466,6 +550,12 @@ public class Message {
     }
 
     // ------------------------------------------------------------------------------------------------------------ type
+
+    /**
+     * Returns the current value of {@code type} property.
+     *
+     * @return the current value of {@code type} property.
+     */
     public int getType() {
         return type;
     }
@@ -505,21 +595,45 @@ public class Message {
     @JsonIgnore
     @JsonbTransient
     public int getCodeClass() {
-        return getCode() & MASK_CODE_CLASS;
+        return getCode() & MAX_CODE_CLASS;
     }
 
     public void setCodeClass(final int codeClass) {
-        setCode(((codeClass & MASK_CODE_CLASS) << SIZE_CODE_CLASS) | getCodeDetail());
+        if (codeClass < MIN_CODE_CLASS) {
+            throw new IllegalArgumentException("codeClass(" + codeClass + ") < " + MIN_CODE_CLASS);
+        }
+        if (codeClass > MAX_CODE_CLASS) {
+            throw new IllegalArgumentException("codeClass(" + codeClass + ") > " + MAX_CODE_CLASS);
+        }
+        setCode(((codeClass & MAX_CODE_CLASS) << SIZE_CODE_CLASS) | getCodeDetail());
     }
 
     @JsonIgnore
     @JsonbTransient
     public int getCodeDetail() {
-        return getCode() & MASK_CODE_DETAIL;
+        return getCode() & MAX_CODE_DETAIL;
     }
 
     public void setCodeDetail(final int codeDetail) {
-        setCode(getCodeClass() | (codeDetail & MASK_CODE_DETAIL));
+        if (codeDetail < MIN_CODE_DETAIL) {
+            throw new IllegalArgumentException("codeDetail(" + codeDetail + ") < " + MIN_CODE_DETAIL);
+        }
+        if (codeDetail > MAX_CODE_DETAIL) {
+            throw new IllegalArgumentException("codeDetail(" + codeDetail + ") > " + MAX_CODE_DETAIL);
+        }
+        setCode(getCodeClass() | (codeDetail & MAX_CODE_DETAIL));
+    }
+
+    public boolean isCodeForEmpty() {
+        return getCode() == 0; // 0.00
+    }
+
+    public boolean isCodeForRequest() {
+        return !isCodeForEmpty() && getCodeClass() >= 0 && getCodeClass() < 2; // 0.01-0.31
+    }
+
+    public boolean isCodeForResponse() {
+        return getCodeClass() >= 2 && getCodeClass() < 6; // 2.00-5.31
     }
 
     // ------------------------------------------------------------------------------------------------------- messageId
@@ -591,7 +705,7 @@ public class Message {
 
     private byte[] token;
 
-    @NotNull
+    //    @NotNull
     private List</*@Valid @NotNull*/ Option> options;
 
     private byte[] payload;
