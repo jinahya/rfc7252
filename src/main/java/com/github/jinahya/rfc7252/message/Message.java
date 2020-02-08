@@ -1,15 +1,5 @@
 package com.github.jinahya.rfc7252.message;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.json.bind.annotation.JsonbTransient;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
-
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.PositiveOrZero;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
@@ -24,10 +14,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static java.util.Collections.sort;
-
 /**
- * .
+ * A class for binding messages.
  *
  * @see <a href="https://tools.ietf.org/html/rfc7252#section-3">3. Message Format (RFC 7252)</a>
  */
@@ -36,27 +24,38 @@ public class Message {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * The minimum value for {@code version} property. The value is {@value}.
+     * The number of bits for {@code version} property.
      */
-    public static final int MIN_VERSION = 0;
+    public static final int SIZE_VERSION = 2;
+
+//    /**
+//     * The minimum value for {@code version} property. The value is {@value}.
+//     */
+//    public static final int MIN_VERSION = 0;
 
     /**
      * The maximum value for {@code version} property. The value is {@value}.
      */
-    public static final int MAX_VERSION = 3;
+    public static final int MAX_VERSION = -1 >>> (Integer.SIZE - SIZE_VERSION);
 
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * The minimum value for {@code type} property. The value is {@value}.
+     * The number of bits for {@code type} property.
      */
-    public static final int MIN_TYPE = 0;
+    public static final int SIZE_TYPE = 2;
+
+//    /**
+//     * The minimum value for {@code type} property. The value is {@value}.
+//     */
+//    public static final int MIN_TYPE = 0;
 
     /**
      * The maximum value for {@code type} property. The value is {@value}.
      */
     public static final int MAX_TYPE = 3;
 
+    // -----------------------------------------------------------------------------------------------------------------
     public static final int TYPE_CONFIRMABLE = 0;
 
     public static final int TYPE_NON_CONFIRMABLE = 1;
@@ -68,21 +67,81 @@ public class Message {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * The minimum value for {@code code} property. The value is {@value}.
+     * The number of bits for {@code code} property.
      */
-    public static final int MIN_CODE = 0;
+    public static final int SIZE_CODE = 8;
+
+//    /**
+//     * The minimum value for {@code code} property. The value is {@value}.
+//     */
+//    public static final int MIN_CODE = 0;
 
     /**
      * The maximum value for {@code code} property. The value is {@value}.
      */
-    public static final int MAX_CODE = 255;
+    public static final int MAX_CODE = -1 >>> (Integer.SIZE - SIZE_CODE);
+
+    // -----------------------------------------------------------------------------------------------------------------
+    public static final int CODE_EMPTY_MESSAGE = 0; // 0.00
+
+    // -----------------------------------------------------------------------------------------------------------------
+    public static final int METHOD_CODE_GET = 1; // 0.01
+
+    public static final int METHOD_CODE_POST = 2; // 0.02
+
+    public static final int METHOD_CODE_PUT = 3; // 0.03
+
+    public static final int METHOD_CODE_DELETE = 4; // 0.04
+
+    // -----------------------------------------------------------------------------------------------------------------
+    public static final int RESPONSE_CODE_CREATED = 0x41; // 2.01
+
+    public static final int RESPONSE_CODE_DELETED = 0x42; // 2.02
+
+    public static final int RESPONSE_CODE_VALID = 0x43; // 2.03
+
+    public static final int RESPONSE_CODE_CHANGED = 0x44; // 2.04
+
+    public static final int RESPONSE_CODE_CONTENT = 0x45; // 2.05
+
+    public static final int RESPONSE_CODE_BAD_REQUEST = 0x80; // 4.00
+
+    public static final int RESPONSE_CODE_UNAUTHORIZED = 0x81; // 4.01
+
+    public static final int RESPONSE_CODE_BAD_OPTION = 0x82; // 4.02
+
+    public static final int RESPONSE_CODE_FORBIDDEN = 0x83; // 4.03
+
+    public static final int RESPONSE_CODE_NOT_FOUND = 0x84; // 4.04
+
+    public static final int RESPONSE_CODE_METHOD_NOT_ALLOWED = 0x85; // 4.05
+
+    public static final int RESPONSE_CODE_NOT_ACCEPTABLE = 0x86; // 4.06
+
+    public static final int RESPONSE_CODE_PRECONDITION_FAILED = 0x8C; // 4.12
+
+    public static final int RESPONSE_CODE_REQUEST_ENTITY_TOO_LARGE = 0x8D; // 4.13
+
+    public static final int RESPONSE_CODE_UNSUPPORTED_CONTENT_FORMAT = 0x8F; // 4.15
+
+    public static final int RESPONSE_CODE_INTERNAL_SERVER_ERROR = 0xA0; // 5.00
+
+    public static final int RESPONSE_CODE_NOT_IMPLEMENTED = 0xA1; // 5.01
+
+    public static final int RESPONSE_CODE_BAD_GATEWAY = 0xA2; // 5.02
+
+    public static final int RESPONSE_CODE_SERVICE_UNAVAILABLE = 0xA3; // 5.03
+
+    public static final int RESPONSE_CODE_GATEWAY_TIMEOUT = 0xA4; // 5.04
+
+    public static final int RESPONSE_CODE_PROXING_NOT_SUPPORTED = 0xA5; // 5.05
 
     // -----------------------------------------------------------------------------------------------------------------
     private static final int SIZE_CODE_CLASS = 3;
 
     public static final int MIN_CODE_CLASS = 0;
 
-    public static final int MAX_CODE_CLASS = 7;
+    public static final int MAX_CODE_CLASS = -1 >>> (Integer.SIZE - SIZE_CODE_CLASS);
 
     public static final int CODE_CLASS_REQUEST = 0;
 
@@ -97,15 +156,17 @@ public class Message {
 
     private static final int MIN_CODE_DETAIL = 0;
 
-    private static final int MAX_CODE_DETAIL = 31;
+    private static final int MAX_CODE_DETAIL = -1 >>> (Integer.SIZE - SIZE_CODE_DETAIL);
 
     // -----------------------------------------------------------------------------------------------------------------
+    public static final int SIZE_MESSAGE_ID = 16;
+
     public static final int MIN_MESSAGE_ID = 0;
 
-    public static final int MAX_MESSAGE_ID = 65535;
+    public static final int MAX_MESSAGE_ID = -1 >>> (Integer.SIZE - SIZE_MESSAGE_ID);
 
     // -----------------------------------------------------------------------------------------------------------------
-    public static final int MIN_TOKEN_LENGTH = 0;
+    //public static final int MIN_TOKEN_LENGTH = 0;
 
     public static final int MAX_TOKEN_LENGTH = 8;
 
@@ -113,23 +174,126 @@ public class Message {
     public static final int PAYLOAD_MARKER = 0xFF;
 
     // -----------------------------------------------------------------------------------------------------------------
-    public static Message newEmptyInstance() {
+
+    /**
+     * Reads a new instance from specified datagram packet's data.
+     *
+     * @param packet the datagram packet from which a new instance is read.
+     * @return a new instance read from the packet.
+     * @throws IOException if an I/O error occurs.
+     */
+    public static Message readInstance(final DatagramPacket packet) throws IOException {
+        if (packet == null) {
+            throw new NullPointerException("package is null");
+        }
         final Message instance = new Message();
-        instance.setCode(0);
+        final DataInputStream input = new DataInputStream(new ByteArrayInputStream(
+                packet.getData(), packet.getOffset(), packet.getLength()));
+        try {
+            instance.read(input);
+        } finally {
+            input.close();
+        }
         return instance;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * .
+     * A class for binding options.
      *
+     * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
      * @see <a href="https://tools.ietf.org/html/rfc7252#section-3.1">3.1. Option Format (RFC 7252)</a>
      */
     public static class Option implements Comparable<Option> {
 
         // -------------------------------------------------------------------------------------------------------------
         static final int MAX_DELTA = 65535 + 269;
+
+        // -------------------------------------------------------------------------------------------------------------
+        public static final int NUMBER_IF_MATCH = 0;
+
+        public static final int NUMBER_URI_HOST = 3;
+
+        public static final int NUMBER_ETAG = 4;
+
+        public static final int NUMBER_IF_NON_MATCH = 5;
+
+        public static final int NUMBER_URI_PORT = 7;
+
+        /**
+         * Predefined option number for {@code Location-Path}.
+         */
+        public static final int NUMBER_LOCATION_PATH = 8;
+
+        /**
+         * The option number for {@code Uri-Path}.
+         */
+        public static final int NUMBER_URI_PATH = 11;
+
+        /**
+         * Predefined option number for {@code Content-Format}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_CONTENT_FORMAT = 12;
+
+        /**
+         * Predefined option number for {@code Max-Age}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_MAX_AGE = 14;
+
+        /**
+         * Predefined option number for {@code Uri-Query}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_URI_QUERY = 15;
+
+        /**
+         * Predefined option number for {@code Accept}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_ACCEPT = 17;
+
+        /**
+         * Predefined option number for {@code Location-Query}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_LOCATION_QUERY = 20;
+
+        /**
+         * Predefined option number for {@code Proxy-Uri}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_PROXY_URI = 35;
+
+        /**
+         * Predefined option number for {@code Proxy-Scheme}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_PROXY_SCHEME = 35;
+
+        /**
+         * Predefined option number for {@code Size1}. The value is {@value}.
+         *
+         * @see <a href="https://tools.ietf.org/html/rfc7252#section-12.2">12.2. CoAP Option Numbers Registry (RFC
+         * 7252)</a>
+         */
+        public static final int NUMBER_SIZE1 = 60;
 
         // -------------------------------------------------------------------------------------------------------------
         public static final int MAX_VALUE_LENGTH = 65535 + 269;
@@ -395,18 +559,10 @@ public class Message {
         }
 
         // -------------------------------------------------------------------------------------------------------------
-        @JsonIgnore
-        @JsonbTransient
-        @PositiveOrZero
-        @Setter(AccessLevel.NONE)
-        @Getter(AccessLevel.NONE)
         private transient Integer delta;
 
-        @PositiveOrZero
-        @NotNull
         private Integer number;
 
-        @NotNull
         private byte[] value = VALUE_EMPTY;
     }
 
@@ -420,13 +576,13 @@ public class Message {
                + ",code=" + code
                + ",messageId=" + messageId
                + ",token=" + Arrays.toString(token)
-               + ",options=" + options +
-               ",payload=" + Arrays.toString(payload)
+               + ",options=" + getOptions()
+               + ",payload=" + Arrays.toString(payload)
                + "}";
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof Message)) return false;
         final Message message = (Message) o;
@@ -435,7 +591,7 @@ public class Message {
         if (code != message.code) return false;
         if (messageId != message.messageId) return false;
         if (!Arrays.equals(token, message.token)) return false;
-        if (options != null ? !options.equals(message.options) : message.options != null) return false;
+        if (!getOptions().equals(message.getOptions())) return false;
         return Arrays.equals(payload, message.payload);
     }
 
@@ -446,7 +602,7 @@ public class Message {
         result = 31 * result + code;
         result = 31 * result + messageId;
         result = 31 * result + Arrays.hashCode(token);
-        result = 31 * result + (options != null ? options.hashCode() : 0);
+        result = 31 * result + getOptions().hashCode();
         result = 31 * result + Arrays.hashCode(payload);
         return result;
     }
@@ -499,19 +655,6 @@ public class Message {
         }
     }
 
-    public void read(final DatagramPacket packet) throws IOException {
-        if (packet == null) {
-            throw new NullPointerException("package is null");
-        }
-        final DataInputStream input = new DataInputStream(new ByteArrayInputStream(
-                packet.getData(), packet.getOffset(), packet.getLength()));
-        try {
-            read(input);
-        } finally {
-            input.close();
-        }
-    }
-
     public void write(final DataOutput output) throws IOException {
         output.write((version << 6) | (type << 4) | (token == null ? 0 : token.length));
         output.write(code);
@@ -519,17 +662,16 @@ public class Message {
         if (token != null && token.length > 0) {
             output.write(token);
         }
-        if (options != null && options.size() > 0) {
-            sort(options);
-            options.get(0).setPreviousNumber(0);
-            for (int i = 1; i < options.size(); i++) {
-                options.get(i).setPrevious(options.get(i - 1));
-            }
-            for (final Option option : options) {
-                option.write(output);
+        if (options != null) {
+            int previousNumber = 0;
+            for (int i = 0; i < options.size(); i++) {
+                final Option current = options.get(i);
+                current.setPreviousNumber(previousNumber);
+                current.write(output);
+                previousNumber = current.getNumber();
             }
         }
-        if (payload != null && payload.length > 0) {
+        if (payload != null) {
             output.write(payload);
         }
     }
@@ -540,8 +682,8 @@ public class Message {
     }
 
     public void setVersion(final int version) {
-        if (version < MIN_VERSION) {
-            throw new IllegalArgumentException("version(" + version + ") < " + MIN_VERSION);
+        if (version < 0) {
+            throw new IllegalArgumentException("version(" + version + ") < 0");
         }
         if (version > MAX_VERSION) {
             throw new IllegalArgumentException("version(" + version + ") > " + MAX_VERSION);
@@ -564,12 +706,11 @@ public class Message {
      * Replaces the current value of {@code type} property with specified value.
      *
      * @param type new value for {@code type} property.
-     * @see #MIN_TYPE
      * @see #MAX_TYPE
      */
     public void setType(final int type) {
-        if (type < MIN_TYPE) {
-            throw new IllegalArgumentException("type(" + type + ") < " + MIN_TYPE);
+        if (type < 0) {
+            throw new IllegalArgumentException("type(" + type + ") < 0");
         }
         if (type > MAX_TYPE) {
             throw new IllegalArgumentException("type(" + type + ") > " + MAX_TYPE);
@@ -583,8 +724,8 @@ public class Message {
     }
 
     public void setCode(final int code) {
-        if (code < MIN_CODE) {
-            throw new IllegalArgumentException("code(" + code + ") < " + MIN_CODE);
+        if (code < 0) {
+            throw new IllegalArgumentException("code(" + code + ") < 0");
         }
         if (code > MAX_CODE) {
             throw new IllegalArgumentException("code(" + code + ") > " + MAX_CODE);
@@ -592,10 +733,9 @@ public class Message {
         this.code = code;
     }
 
-    @JsonIgnore
-    @JsonbTransient
+    // ------------------------------------------------------------------------------------------------------- codeClass
     public int getCodeClass() {
-        return getCode() & MAX_CODE_CLASS;
+        return getCode() >> SIZE_CODE_DETAIL;
     }
 
     public void setCodeClass(final int codeClass) {
@@ -605,11 +745,10 @@ public class Message {
         if (codeClass > MAX_CODE_CLASS) {
             throw new IllegalArgumentException("codeClass(" + codeClass + ") > " + MAX_CODE_CLASS);
         }
-        setCode(((codeClass & MAX_CODE_CLASS) << SIZE_CODE_CLASS) | getCodeDetail());
+        setCode((codeClass << SIZE_CODE_DETAIL) | getCodeDetail());
     }
 
-    @JsonIgnore
-    @JsonbTransient
+    // ------------------------------------------------------------------------------------------------------ codeDetail
     public int getCodeDetail() {
         return getCode() & MAX_CODE_DETAIL;
     }
@@ -621,19 +760,7 @@ public class Message {
         if (codeDetail > MAX_CODE_DETAIL) {
             throw new IllegalArgumentException("codeDetail(" + codeDetail + ") > " + MAX_CODE_DETAIL);
         }
-        setCode(getCodeClass() | (codeDetail & MAX_CODE_DETAIL));
-    }
-
-    public boolean isCodeForEmpty() {
-        return getCode() == 0; // 0.00
-    }
-
-    public boolean isCodeForRequest() {
-        return !isCodeForEmpty() && getCodeClass() >= 0 && getCodeClass() < 2; // 0.01-0.31
-    }
-
-    public boolean isCodeForResponse() {
-        return getCodeClass() >= 2 && getCodeClass() < 6; // 2.00-5.31
+        setCode((getCodeClass() << SIZE_CODE_DETAIL) | codeDetail);
     }
 
     // ------------------------------------------------------------------------------------------------------- messageId
@@ -658,9 +785,9 @@ public class Message {
 
     public void setToken(final byte[] token) {
         if (token != null) {
-            if (token.length < MIN_TOKEN_LENGTH) {
-                throw new IllegalArgumentException("token.length(" + token.length + ") < " + MIN_TOKEN_LENGTH);
-            }
+//            if (token.length < MIN_TOKEN_LENGTH) {
+//                throw new IllegalArgumentException("token.length(" + token.length + ") < " + MIN_TOKEN_LENGTH);
+//            }
             if (token.length > MAX_TOKEN_LENGTH) {
                 throw new IllegalArgumentException("token.length(" + token.length + ") > " + MAX_TOKEN_LENGTH);
             }
@@ -669,12 +796,24 @@ public class Message {
     }
 
     // --------------------------------------------------------------------------------------------------------- options
-    public List<Option> getOptions() {
+    private List<Option> getOptions() {
+        if (options == null) {
+            options = new ArrayList<Option>();
+        }
         return options;
     }
 
-    public void setOptions(final List<Option> options) {
-        this.options = options;
+    public void addOption(final Option option) {
+        if (option == null) {
+            throw new NullPointerException("option is null");
+        }
+        final int number = option.getNumber();
+        final int previous = getOptions().isEmpty() ? 0 : getOptions().get(0).getNumber();
+        if (number < previous) {
+            throw new IllegalArgumentException(
+                    "option.number(" + number + ") < previous option's number(" + previous + ")");
+        }
+        getOptions().add(option);
     }
 
     // --------------------------------------------------------------------------------------------------------- payload
@@ -687,26 +826,17 @@ public class Message {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    @Max(MAX_VERSION)
-    @Min(MIN_VERSION)
     private int version = 1;
 
-    @Max(MAX_TYPE)
-    @Min(MIN_TYPE)
     private int type;
 
-    @Max(MAX_CODE)
-    @Min(MIN_CODE)
     private int code;
 
-    @Max(MAX_MESSAGE_ID)
-    @Min(MIN_MESSAGE_ID)
     private int messageId;
 
     private byte[] token;
 
-    //    @NotNull
-    private List</*@Valid @NotNull*/ Option> options;
+    private List<Option> options;
 
     private byte[] payload;
 }
